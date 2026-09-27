@@ -8,7 +8,7 @@ Route::get('/', function () {
 
 Route::get('/latihan-php', function () { 
     $nama = 'Muhammad Heisal Alfarizi'; 
-    $nilai = [90, 95, 93, 88, 92]; 
+    $nilai = [99, 99, 99, 99, 100]; 
  
     $hitungRataRata = function (array $data): float { 
         $total = 0; 
@@ -28,4 +28,25 @@ Route::get('/latihan-php', function () {
     return view('latihan-php', compact( 
         'nama', 'nilai', 'rataRata', 'status' 
     )); 
-}); 
+});
+
+Route::get('/form-mahasiswa', function () {
+    return view('form-mahasiswa');
+})->name('form.mahasiswa');
+
+Route::post('/form-mahasiswa', function (\Illuminate\Http\Request $request) {
+    $request->merge([
+        'nama' => trim($request->nama ?? ''),
+        'email' => trim($request->email ?? ''),
+        'nim' => trim($request->nim ?? ''),
+    ]);
+
+    $validated = $request->validate([
+        'nama' => ['required', 'string', 'max:100'],
+        'email' => ['required', 'email'],
+        'usia' => ['required', 'integer', 'min:1'],
+        'nim' => ['required', 'digits_between:8,12'],
+    ]);
+
+    return back()->with('success', 'Data mahasiswa berhasil dikirim.');
+})->name('form.mahasiswa.submit');

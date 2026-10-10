@@ -1,52 +1,57 @@
+
 <?php
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/latihan-php', function () { 
-    $nama = 'Muhammad Heisal Alfarizi'; 
-    $nilai = [99, 99, 99, 99, 100]; 
- 
-    $hitungRataRata = function (array $data): float { 
-        $total = 0; 
-        foreach ($data as $angka) { 
-            $total += $angka; 
-        } 
-        return $total / count($data); 
-    }; 
- 
-    $rataRata = $hitungRataRata($nilai); 
-    if ($rataRata >= 75) { 
-        $status = 'Lulus'; 
-    } else { 
-        $status = 'Perlu Perbaikan'; 
-    } 
- 
-    return view('latihan-php', compact( 
-        'nama', 'nilai', 'rataRata', 'status' 
-    )); 
+Route::get('/mahasiswa/{nim?}', function (?string $nim = null) {
+    try {
+        $pdo = DB::connection()->getPdo();
+
+        $sql = 'SELECT
+                    m.nim,
+                    m.nama_mahasiswa,
+                    m.email,
+                    m.usia,
+                    p.nama_prodi
+                FROM mahasiswa AS m
+                JOIN program_studi AS p
+                    ON p.id = m.program_studi_id';
+
+        if ($nim !== null && $nim !== '') {
+            $sql .= ' WHERE m.nim = :nim';
+        }
+
+        $sql .= ' ORDER BY m.nim';
+
+        $statement = $pdo->prepare($sql);
+
+        if ($nim !== null && $nim !== '') {
+            $statement->execute(['nim' => $nim]);
+        } else {
+            $statement->execute();
+        }
+
+        $daftarMahasiswa = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        return view('mahasiswa', [
+            'daftarMahasiswa' => $daftarMahasiswa,
+            'nim' => $nim,
+            'error' => null,
+        ]);
+
+    } catch (\Throwable $error) {
+        Log::error('Gagal mengambil data mahasiswa: ' . $error->getMessage());
+
+        return response(
+            'Koneksi atau query basis data gagal. Periksa konfigurasi database.',
+            500
+        );
+    }
 });
-
-Route::get('/form-mahasiswa', function () {
-    return view('form-mahasiswa');
-})->name('form.mahasiswa');
-
-Route::post('/form-mahasiswa', function (\Illuminate\Http\Request $request) {
-    $request->merge([
-        'nama' => trim($request->nama ?? ''),
-        'email' => trim($request->email ?? ''),
-        'nim' => trim($request->nim ?? ''),
-    ]);
-
-    $validated = $request->validate([
-        'nama' => ['required', 'string', 'max:100'],
-        'email' => ['required', 'email'],
-        'usia' => ['required', 'integer', 'min:1'],
-        'nim' => ['required', 'digits_between:8,12'],
-    ]);
-
-    return back()->with('success', 'Data mahasiswa berhasil dikirim.');
-})->name('form.mahasiswa.submit');

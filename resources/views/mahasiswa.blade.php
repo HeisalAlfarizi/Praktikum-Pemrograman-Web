@@ -9,48 +9,107 @@
 <body>
     <h1>Data Mahasiswa</h1>
 
+    @if (session('berhasil'))
+        <p>{{ session('berhasil') }}</p>
+    @endif
+
+    @if (session('gagal'))
+        <p>{{ session('gagal') }}</p>
+    @endif
+
+    @if ($errors->any())
+        <ul>
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    @endif
+
+    <h2>Tambah Mahasiswa</h2>
+
+    <form action="{{ route('mahasiswa.store') }}" method="POST">
+        @csrf
+
+        <p>
+            NIM<br>
+            <input type="text" name="nim"
+                   value="{{ old('nim') }}">
+        </p>
+
+        <p>
+            Nama<br>
+            <input type="text" name="nama_mahasiswa"
+                   value="{{ old('nama_mahasiswa') }}">
+        </p>
+
+        <p>
+            Email<br>
+            <input type="email" name="email"
+                   value="{{ old('email') }}">
+        </p>
+
+        <p>
+            Usia<br>
+            <input type="number" name="usia"
+                   value="{{ old('usia') }}">
+        </p>
+
+        <p>
+            Program Studi<br>
+            <select name="program_studi_id">
+                <option value="">-- Pilih Program Studi --</option>
+
+                @foreach ($daftarProgramStudi as $programStudi)
+                    <option value="{{ $programStudi['id'] }}"
+                        @selected(old('program_studi_id') == $programStudi['id'])>
+                        {{ $programStudi['nama_prodi'] }}
+                    </option>
+                @endforeach
+            </select>
+        </p>
+
+        <button type="submit">Tambah Data</button>
+    </form>
+
+    <h2>Daftar Mahasiswa</h2>
+
     <form action="{{ url('/mahasiswa') }}" method="GET">
         <label for="nim">Cari berdasarkan NIM:</label>
-        <input
-            type="text"
-            id="nim"
-            name="nim"
-            value="{{ $nim ?? '' }}"
-            placeholder="Masukkan NIM"
-        >
+        <input type="text" id="nim" name="nim"
+               value="{{ $nim ?? '' }}"
+               placeholder="Masukkan NIM">
         <button type="submit">Cari</button>
         <a href="{{ url('/mahasiswa') }}">Tampilkan Semua</a>
     </form>
 
-    <hr>
+    <br>
 
-    @if (count($daftarMahasiswa) > 0)
-        <table border="1" cellpadding="8">
-            <thead>
+    <table border="1" cellpadding="8" cellspacing="0">
+        <thead>
+            <tr>
+                <th>NIM</th>
+                <th>Nama</th>
+                <th>Email</th>
+                <th>Usia</th>
+                <th>Program Studi</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @forelse ($daftarMahasiswa as $mahasiswa)
                 <tr>
-                    <th>NIM</th>
-                    <th>Nama Mahasiswa</th>
-                    <th>Email</th>
-                    <th>Usia</th>
-                    <th>Program Studi</th>
+                    <td>{{ $mahasiswa['nim'] }}</td>
+                    <td>{{ $mahasiswa['nama_mahasiswa'] }}</td>
+                    <td>{{ $mahasiswa['email'] }}</td>
+                    <td>{{ $mahasiswa['usia'] }}</td>
+                    <td>{{ $mahasiswa['nama_prodi'] }}</td>
                 </tr>
-            </thead>
-            <tbody>
-                @foreach ($daftarMahasiswa as $mhs)
-                    <tr>
-                        <td>{{ $mhs['nim'] }}</td>
-                        <td>{{ $mhs['nama_mahasiswa'] }}</td>
-                        <td>{{ $mhs['email'] }}</td>
-                        <td>{{ $mhs['usia'] }}</td>
-                        <td>{{ $mhs['nama_prodi'] }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    @elseif (!empty($nim))
-        <p>Data mahasiswa dengan NIM {{ $nim }} tidak ditemukan.</p>
-    @else
-        <p>Belum ada data mahasiswa.</p>
-    @endif
+            @empty
+                <tr>
+                    <td colspan="5">Data belum tersedia.</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
 </body>
 </html>

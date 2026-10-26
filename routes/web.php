@@ -3,7 +3,6 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -38,20 +37,110 @@ Route::get('/mahasiswa/{nim?}', function (?string $nim = null) {
             $statement->execute();
         }
 
-        $daftarMahasiswa = $statement->fetchAll(PDO::FETCH_ASSOC);
+        $daftarMahasiswa = $statement->fetchAll(
+            \PDO::FETCH_ASSOC
+        );
+
+        $pernyataanProdi = $pdo->prepare(
+            'SELECT id, nama_prodi
+             FROM program_studi
+             ORDER BY nama_prodi'
+        );
+
+        $pernyataanProdi->execute();
+
+        $daftarProgramStudi = $pernyataanProdi->fetchAll(
+            \PDO::FETCH_ASSOC
+        );
 
         return view('mahasiswa', [
             'daftarMahasiswa' => $daftarMahasiswa,
+            'daftarProgramStudi' => $daftarProgramStudi,
             'nim' => $nim,
-            'error' => null,
         ]);
 
     } catch (\Throwable $error) {
-        Log::error('Gagal mengambil data mahasiswa: ' . $error->getMessage());
+        report($error);
 
         return response(
-            'Koneksi atau query basis data gagal. Periksa konfigurasi database.',
+            'Data tidak dapat dibaca. Periksa koneksi dan query.',
             500
         );
     }
-});
+})->name('mahasiswa.index');
+
+
+Route::post('/mahasiswa', function (Request $request) {
+    $data = $request->validate([
+        'nim' => ['required', 'string', 'max:20'],
+        'nama_mahasiswa' => ['required', 'string', 'max:100'],
+        'email' => ['required', 'email', 'max:100'],
+        'usia' => ['required', 'integer', 'min:15', 'max:100'],
+        'program_studi_id' => [
+            'required',
+            'integer',
+            'exists:program_studi,id'
+        ],
+    ], [
+        'nim.required' => 'NIM wajib diisi.',
+        'nama_mahasiswa.required' => 'Nama wajib diisi.',
+        'email.required' => 'Email wajib diisi.',
+        'email.email' => 'Format email tidak valid.',
+        'usia.required' => 'Usia wajib diisi.',
+        'usia.integer' => 'Usia harus berupa angka.',
+        'program_studi_id.required' =>
+            'Program studi wajib dipilih.',
+        'program_studi_id.exists' =>
+            'Program studi yang dipilih tidak tersedia.',
+    ]);
+
+    try {
+        $pdo = DB::connection()->getPdo();
+
+        $cekDuplikat = $pdo->prepare(
+            'SELECT COUNT(*)
+             FROM mahasiswa
+             WHERE nim = :nim OR email = :email'
+        );
+
+        $cekDuplikat->execute([
+            'nim' => $data['nim'],
+            'email' => $data['email'],
+        ]);
+
+        if ((int) $cekDuplikat->fetchColumn() > 0) {
+            return back()->withInput()->with(
+                'gagal',
+                'NIM atau email sudah digunakan.'
+            );
+        }
+
+        $simpan = $pdo->prepare(
+            'INSERT INTO mahasiswa
+                (nim, nama_mahasiswa, email, usia, program_studi_id)
+             VALUES
+                (:nim, :nama_mahasiswa, :email, :usia, :program_studi_id)'
+        );
+
+        $simpan->execute([
+            'nim' => $data['nim'],
+            'nama_mahasiswa' => $data['nama_mahasiswa'],
+            'email' => $data['email'],
+            'usia' => $data['usia'],
+            'program_studi_id' => $data['program_studi_id'],
+        ]);
+
+        return redirect()->route('mahasiswa.index')->with(
+            'berhasil',
+            'Data mahasiswa berhasil ditambahkan.'
+        );
+
+    } catch (\Throwable $error) {
+        report($error);
+
+        return back()->withInput()->with(
+            'gagal',
+            'Data gagal disimpan. Periksa koneksi dan data.'
+        );
+    }
+})->name('mahasiswa.store');
